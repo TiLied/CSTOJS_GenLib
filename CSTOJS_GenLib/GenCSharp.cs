@@ -6,7 +6,6 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-
 namespace CSTOJS_GenLib;
 
 public class GenCSharp : ILog
@@ -497,9 +496,7 @@ public class GenCSharp : ILog
 							StringBuilder _IDLtype = new();
 							ProcessWebIDLType(ref _IDLtype, item);
 
-							if (_IDLtype.ToString().Contains("List<List") ||
-								_IDLtype.ToString().Contains("List<ulong>") ||
-								_IDLtype.ToString().Contains("List<double>"))
+							if (_IDLtype.ToString().Contains("List<"))
 							{
 								_IDLtype = new();
 								_IDLtype.Append("List<T>");
@@ -514,6 +511,7 @@ public class GenCSharp : ILog
 							_lsb.Append($"\"/> or ");
 						}
 					}
+					_lsb.Replace("?", "");
 					_lsb.Replace("<", "{");
 					_lsb.Replace(">", "}");
 					_lsb.Replace("{see", "<see");
@@ -1517,11 +1515,11 @@ public class GenCSharp : ILog
 
 		//The output path needs to be in CSharpToJavaScript!
 		string directory = _Output.Replace("APIs", "Utils");
-		directory = directory.Replace("JS\\Generated", "");
+		directory = directory.Replace("JS/Generated", "");
 
-		if (File.Exists($"{directory}\\Docs2\\{currentTypeName}\\{currentTypeName}.xml"))
+		if (File.Exists($"{directory}/Docs2/{currentTypeName}/{currentTypeName}.xml"))
 			_SB[_SBIndex].AppendLine($"///<include file='Utils/Docs2/{currentTypeName}/{currentTypeName}.xml' path='docs/{name}/*'/>");
-		if (File.Exists($"{directory}\\Docs\\{currentTypeName}\\{currentTypeName}.generated.xml"))
+		if (File.Exists($"{directory}/Docs/{currentTypeName}/{currentTypeName}.generated.xml"))
 			_SB[_SBIndex].AppendLine($"///<include file='Utils/Docs/{currentTypeName}/{currentTypeName}.generated.xml' path='docs/{name}/*'/>");
 	}
 }

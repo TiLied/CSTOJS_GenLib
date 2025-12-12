@@ -82,25 +82,26 @@ public class GenDocs
 		foreach (string subdirectory in subdirectoryEntries)
 		{
 			_CurrentFileName = subdirectory.Remove(0, _Path.Length);
-
+			_CurrentFileName = _CurrentFileName.Replace("\\", "");
+			
 			if (_CurrentFileName.Contains('_'))
 			{
 				string[] strings = _CurrentFileName.Split("_");
 				_CurrentFileName = string.Empty;
 				foreach (string item in strings)
 				{
-					_CurrentFileName += _CurrentFileName;
+					_CurrentFileName += item;
 				}
 			}
 
-			if (!Directory.Exists(_Output + $"\\{_CurrentFileName}"))
-			{
-				Directory.CreateDirectory(_Output + $"\\{_CurrentFileName}");
-			}
+			string _directory = Path.Combine(_Output, _CurrentFileName);
+			
+			if (!Directory.Exists(_directory))
+				Directory.CreateDirectory(_directory);
 
-			if (!File.Exists(Path.Combine(_Output + $"\\{_CurrentFileName}", $"{_CurrentFileName}.generated.xml")))
+			if (!File.Exists(Path.Combine(_directory, $"{_CurrentFileName}.generated.xml")))
 			{
-				FileStream fS = File.Create(Path.Combine(_Output + $"\\{_CurrentFileName}", $"{_CurrentFileName}.generated.xml"));
+				FileStream fS = File.Create(Path.Combine(_directory, $"{_CurrentFileName}.generated.xml"));
 				fS.Dispose();
 			}
 
@@ -112,8 +113,7 @@ public class GenDocs
 
 			_sb.Append("</docs>");
 
-			await File.AppendAllTextAsync(Path.Combine(_Output + $"\\{_CurrentFileName}", $"{_CurrentFileName}.generated.xml"), _sb.ToString());
-
+			await File.AppendAllTextAsync(Path.Combine(_directory, $"{_CurrentFileName}.generated.xml"), _sb.ToString());
 		}
 
 		Log("--- Done!");
