@@ -496,7 +496,9 @@ public class GenCSharp : ILog
 							StringBuilder _IDLtype = new();
 							ProcessWebIDLType(ref _IDLtype, item);
 
-							if (_IDLtype.ToString().Contains("List<"))
+							if (_IDLtype.ToString().Contains("List<List") ||
+								_IDLtype.ToString().Contains("List<ulong>") ||
+								_IDLtype.ToString().Contains("List<double>"))
 							{
 								_IDLtype = new();
 								_IDLtype.Append("List<T>");
@@ -511,7 +513,9 @@ public class GenCSharp : ILog
 							_lsb.Append($"\"/> or ");
 						}
 					}
+					//ignore nullable
 					_lsb.Replace("?", "");
+					
 					_lsb.Replace("<", "{");
 					_lsb.Replace(">", "}");
 					_lsb.Replace("{see", "<see");
@@ -844,16 +848,28 @@ public class GenCSharp : ILog
 					_SB[_SBIndex].Append(") { throw new System.NotImplementedException(); }");
 					break;
 				}
-			case "UnionStruct": 
+			case "UnionStruct":
 				{
 					foreach (WebIDLType item in member.IDLType)
 					{
+						StringBuilder _sb = new();
+						
 						_SB[_SBIndex].Append($"public static implicit operator {_CurrentTType.Name}(");
-						ProcessWebIDLType(ref _SB[_SBIndex], item);
+						ProcessWebIDLType(ref _sb, item);
+						_SB[_SBIndex].Append(_sb);
 						_SB[_SBIndex].Append(" value)");
-						_SB[_SBIndex].Append("{");
+						_SB[_SBIndex].Append('{');
 						_SB[_SBIndex].Append($"return new {_CurrentTType.Name} {{ Value = value }};");
-						_SB[_SBIndex].Append("}");
+						_SB[_SBIndex].Append('}');
+
+						_SB[_SBIndex].AppendLine();
+						
+						_SB[_SBIndex].Append($"\tpublic static implicit operator {_sb}(");
+						_SB[_SBIndex].Append(_CurrentTType.Name);
+						_SB[_SBIndex].Append(" value)");
+						_SB[_SBIndex].Append('{');
+						_SB[_SBIndex].Append($"return new {_CurrentTType.Name} {{ Value = value }};");
+						_SB[_SBIndex].Append('}');
 					}
 					break;
 				}
@@ -1518,8 +1534,8 @@ public class GenCSharp : ILog
 		directory = directory.Replace("JS/Generated", "");
 
 		if (File.Exists($"{directory}/Docs2/{currentTypeName}/{currentTypeName}.xml"))
-			_SB[_SBIndex].AppendLine($"///<include file='Utils/Docs2/{currentTypeName}/{currentTypeName}.xml' path='docs/{name}/*'/>");
+			_SB[_SBIndex].AppendLine($"///<include file='CSharpToJavaScript/Utils/Docs2/{currentTypeName}/{currentTypeName}.xml' path='docs/{name}/*'/>");
 		if (File.Exists($"{directory}/Docs/{currentTypeName}/{currentTypeName}.generated.xml"))
-			_SB[_SBIndex].AppendLine($"///<include file='Utils/Docs/{currentTypeName}/{currentTypeName}.generated.xml' path='docs/{name}/*'/>");
+			_SB[_SBIndex].AppendLine($"///<include file='CSharpToJavaScript/Utils/Docs/{currentTypeName}/{currentTypeName}.generated.xml' path='docs/{name}/*'/>");
 	}
 }
