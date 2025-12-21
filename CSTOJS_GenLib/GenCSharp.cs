@@ -26,13 +26,19 @@ public class GenCSharp : ILog
 
 	//
 	//0 = Typedef. Needs to be in every other StringBuilder!
-	//1 = Enums.
-	//2 = Interfaces.
-	//3 = Classes. TODO! Seperate to multiple files!
-	//4 = Structs.
-	//5 = Union structs.
+	//1 = enums: enum.
+	//2 = callback interface/interface mixins: interface.
+	//3 = namespace: class.
+	//4 = interface: class.
+	//5 = dictionary: class with [ToObject] attribute.
+	//6 = callbacks: delegate.
+	//7 = union: struct.
 	//
-	private StringBuilder[] _SB = new StringBuilder[6];
+	public string[] _JSFileNames = new string[8]
+	{
+		"Skip", "enum", "interface-mixin", "namespace", "interface", "dictionary", "callback", "union"
+	};
+	private StringBuilder[] _SB = new StringBuilder[8];
 	private int _SBIndex = 0;
 
 	public GenCSharp()
@@ -147,10 +153,7 @@ public class GenCSharp : ILog
 
 		for (int i = 1; i < _SB.Length; i++)
 		{
-			if (File.Exists(Path.Combine(output, $"JS{i}.generated.cs")))
-				await File.WriteAllTextAsync(Path.Combine(output, $"JS{i}{i}.generated.cs"), _SB[i].ToString());
-			else
-				await File.WriteAllTextAsync(Path.Combine(output, $"JS{i}.generated.cs"), _SB[i].ToString());
+			await File.WriteAllTextAsync(Path.Combine(output, $"{_JSFileNames[i]}.generated.cs"), _SB[i].ToString());
 		}
 
 		_Log.WriteLine("--- Done!");
@@ -383,8 +386,6 @@ public class GenCSharp : ILog
 					break;
 				}
 			case "namespace":
-			case "interface":
-			case "dictionary":
 				{
 					_SBIndex = 3;
 					if (tType.Name == "console")
@@ -406,7 +407,7 @@ public class GenCSharp : ILog
 
 						if (arrL != null)
 							_SB[_SBIndex].Append($"{tType.Inheritance}");
-						
+
 						if (tType.ListAdditionalInheritance.Count != 0)
 						{
 							if (arrL != null)
@@ -448,16 +449,17 @@ public class GenCSharp : ILog
 							}
 						}
 					}
-					
+
 
 					_SB[_SBIndex].Append("}");
 					_SB[_SBIndex].AppendLine();
 					break;
 				}
-			case "callback":
+			case "interface":
 				{
 					_SBIndex = 4;
 					AddXmlRef(tType.Name);
+
 					string? exist = _ListNamesForAttr.Find(e => e == tType.Name);
 					if (exist == null)
 					{
@@ -465,19 +467,148 @@ public class GenCSharp : ILog
 						_ListNamesForAttr.Add(tType.Name);
 					}
 					_SB[_SBIndex].Append($"public partial class {tType.Name}");
+					if (tType.Inheritance != null)
+					{
+						_SB[_SBIndex].Append($" : ");
+						TType arrL = _Main.TType.Find((e) => e.Name == tType.Inheritance);
+
+						if (arrL != null)
+							_SB[_SBIndex].Append($"{tType.Inheritance}");
+
+						if (tType.ListAdditionalInheritance.Count != 0)
+						{
+							if (arrL != null)
+								_SB[_SBIndex].Append($", ");
+							foreach (TType item in tType.ListAdditionalInheritance)
+							{
+								_SB[_SBIndex].Append($"{item.Name}, ");
+							}
+							_SB[_SBIndex] = _SB[_SBIndex].Remove(_SB[_SBIndex].Length - 2, 2);
+						}
+						else if (arrL == null)
+						{
+							_SB[_SBIndex] = _SB[_SBIndex].Remove(_SB[_SBIndex].Length - 3, 3);
+						}
+					}
 					_SB[_SBIndex].AppendLine();
 					_SB[_SBIndex].Append("{");
 					_SB[_SBIndex].AppendLine();
 
-					//TODO Action ?
+					foreach (Member mem in tType.Members)
+					{
+						_SB[_SBIndex].Append("\t");
+						ProcessMember(mem);
+						_SB[_SBIndex].AppendLine();
+					}
+
+					foreach (Member mem in tType.Members)
+					{
+						if (mem.Type == "constructor")
+						{
+							if (mem.Arguments.Count == 0)
+								break;
+							if (mem.Arguments.Count >= 1)
+							{
+								_SB[_SBIndex].Append("\t");
+								_SB[_SBIndex].Append($"public {_CurrentTType.Name}() {{ }}");
+								_SB[_SBIndex].AppendLine();
+								break;
+							}
+						}
+					}
+
 
 					_SB[_SBIndex].Append("}");
 					_SB[_SBIndex].AppendLine();
 					break;
 				}
-			case "UnionStruct":
+			case "dictionary":
 				{
 					_SBIndex = 5;
+					AddXmlRef(tType.Name);
+					string? exist = _ListNamesForAttr.Find(e => e == tType.Name);
+					if (exist == null)
+					{
+						_SB[_SBIndex].AppendLine($"[ToObject]");
+						_ListNamesForAttr.Add(tType.Name);
+					}
+					
+					_SB[_SBIndex].Append($"public partial class {tType.Name}");
+					if (tType.Inheritance != null)
+					{
+						_SB[_SBIndex].Append($" : ");
+						TType arrL = _Main.TType.Find((e) => e.Name == tType.Inheritance);
+
+						if (arrL != null)
+							_SB[_SBIndex].Append($"{tType.Inheritance}");
+
+						if (tType.ListAdditionalInheritance.Count != 0)
+						{
+							if (arrL != null)
+								_SB[_SBIndex].Append($", ");
+							foreach (TType item in tType.ListAdditionalInheritance)
+							{
+								_SB[_SBIndex].Append($"{item.Name}, ");
+							}
+							_SB[_SBIndex] = _SB[_SBIndex].Remove(_SB[_SBIndex].Length - 2, 2);
+						}
+						else if (arrL == null)
+						{
+							_SB[_SBIndex] = _SB[_SBIndex].Remove(_SB[_SBIndex].Length - 3, 3);
+						}
+					}
+					_SB[_SBIndex].AppendLine();
+					_SB[_SBIndex].Append("{");
+					_SB[_SBIndex].AppendLine();
+
+					foreach (Member mem in tType.Members)
+					{
+						_SB[_SBIndex].Append("\t");
+						ProcessMember(mem);
+						_SB[_SBIndex].AppendLine();
+					}
+
+					_SB[_SBIndex].Append("}");
+					_SB[_SBIndex].AppendLine();
+					break;
+				}
+			case "callback":
+				{
+					_SBIndex = 6;
+					AddXmlRef(tType.Name);
+
+					/*
+					string? exist = _ListNamesForAttr.Find(e => e == tType.Name);
+					if (exist == null)
+					{
+						_SB[_SBIndex].AppendLine($"[Value(\"{tType.Name}\")]");
+						_ListNamesForAttr.Add(tType.Name);
+					}*/
+					
+					_SB[_SBIndex].Append($"public delegate ");
+
+					ProcessWebIDLType(ref _SB[_SBIndex], tType.IDLType[0]);
+
+					_SB[_SBIndex].Append($" {tType.Name}");
+
+					_SB[_SBIndex].Append('(');
+
+					if (tType.Arguments.Count >= 1)
+					{
+						foreach (Argument item in tType.Arguments)
+						{
+							ProcessArguments(item);
+							_SB[_SBIndex].Append($", ");
+						}
+
+						_SB[_SBIndex] = _SB[_SBIndex].Remove(_SB[_SBIndex].Length - 2, 2);
+					}
+					_SB[_SBIndex].AppendLine(");");
+					break;
+				}
+			case "UnionStruct":
+				{
+					_SBIndex = 7;
 					//
 					//
 					//TODO! better!
@@ -1274,7 +1405,8 @@ public class GenCSharp : ILog
 						argument.Name == "default" ||
 						argument.Name == "interface" ||
 						argument.Name == "ref" ||
-						argument.Name == "params")
+						argument.Name == "params" ||
+						argument.Name == "lock")
 					{
 						_SB[_SBIndex].Append($" {argument.Name}_");
 					}
