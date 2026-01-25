@@ -113,7 +113,7 @@ public class GenDocs
 
 			_sb.Append("</docs>");
 
-			await File.AppendAllTextAsync(Path.Combine(_directory, $"{_CurrentFileName}.generated.xml"), _sb.ToString());
+			await File.WriteAllTextAsync(Path.Combine(_directory, $"{_CurrentFileName}.generated.xml"), _sb.ToString());
 		}
 
 		Log("--- Done!");

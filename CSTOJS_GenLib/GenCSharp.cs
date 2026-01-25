@@ -58,28 +58,6 @@ public class GenCSharp : ILog
 
 		_Main = welcome ?? new();
 
-		//
-		//
-		//Not working, because classes/interfaces with the same name,
-		//can be both partial and not)
-		//TODO!
-		/*
-		List<TType> all = _Main.TType.DistinctBy((i) => { return i.Name; }).ToList();
-		List<TType> par = all.Select((i) => { if (i.Partial == true) return i; else return null; }).ToList();
-		foreach (TType item in par)
-		{
-			if(item != null)
-				all.Remove(item);
-		}
-		List<TType> par2 = _Main.TType.Select((i) => { if (i.Partial == true) return i; else return null; }).ToList();
-		par2.RemoveAll((i) => i == null);
-
-		_Main.TType = all.Concat(par2).ToList();
-		*/
-
-		//var a = _Main.TType.Select((i) => { if (i.Name == "Window") return i; else return null; }).ToList();
-		//a.RemoveAll((i) => i == null);
-
 		int length = _Main.TType.Count;
 
 		for (int i = 0; i < length; i++)
@@ -315,23 +293,23 @@ public class GenCSharp : ILog
 				{
 					_SBIndex = 1;
 					AddXmlRef(tType.Name);
-					_SB[_SBIndex].AppendLine($"[To(ToAttribute.None)]");
+					_SB[_SBIndex].AppendLine($"[To(ToAttribute.NoneWithTailingDotRemoved)]");
 					_SB[_SBIndex].Append($"public enum {tType.Name}");
 					_SB[_SBIndex].AppendLine();
-					_SB[_SBIndex].Append("{");
+					_SB[_SBIndex].Append('{');
 					_SB[_SBIndex].AppendLine();
 
 					foreach (Value val in tType.Values)
 					{
-						_SB[_SBIndex].Append("\t");
-						_SB[_SBIndex].AppendLine($"[EnumValue(\"{val.ValueObj.ToString()}\")]");
-						_SB[_SBIndex].Append("\t");
+						_SB[_SBIndex].Append('\t');
+						_SB[_SBIndex].AppendLine($"[Value(\"\\\"{val.ValueObj.ToString()}\\\"\")]");
+						_SB[_SBIndex].Append('\t');
 						ProcessValue(val);
-						_SB[_SBIndex].Append(",");
+						_SB[_SBIndex].Append(',');
 						_SB[_SBIndex].AppendLine();
 					}
 
-					_SB[_SBIndex].Append("}");
+					_SB[_SBIndex].Append('}');
 					_SB[_SBIndex].AppendLine();
 
 					break;
@@ -355,20 +333,8 @@ public class GenCSharp : ILog
 
 						if (arrL != null)
 							_SB[_SBIndex].Append($"{tType.Inheritance}");
-						if (tType.ListAdditionalInheritance.Count != 0)
-						{
-							if (arrL != null)
-								_SB[_SBIndex].Append($", ");
-							foreach (TType item in tType.ListAdditionalInheritance)
-							{
-								_SB[_SBIndex].Append($"{item.Name}, ");
-							}
-							_SB[_SBIndex] = _SB[_SBIndex].Remove(_SB[_SBIndex].Length - 2, 2);
-						}
-						else if (arrL == null)
-						{
+						else
 							_SB[_SBIndex] = _SB[_SBIndex].Remove(_SB[_SBIndex].Length - 3, 3);
-						}
 					}
 					_SB[_SBIndex].AppendLine();
 					_SB[_SBIndex].Append("{");
@@ -407,21 +373,8 @@ public class GenCSharp : ILog
 
 						if (arrL != null)
 							_SB[_SBIndex].Append($"{tType.Inheritance}");
-
-						if (tType.ListAdditionalInheritance.Count != 0)
-						{
-							if (arrL != null)
-								_SB[_SBIndex].Append($", ");
-							foreach (TType item in tType.ListAdditionalInheritance)
-							{
-								_SB[_SBIndex].Append($"{item.Name}, ");
-							}
-							_SB[_SBIndex] = _SB[_SBIndex].Remove(_SB[_SBIndex].Length - 2, 2);
-						}
-						else if (arrL == null)
-						{
+						else
 							_SB[_SBIndex] = _SB[_SBIndex].Remove(_SB[_SBIndex].Length - 3, 3);
-						}
 					}
 					_SB[_SBIndex].AppendLine();
 					_SB[_SBIndex].Append("{");
@@ -490,6 +443,17 @@ public class GenCSharp : ILog
 							_SB[_SBIndex] = _SB[_SBIndex].Remove(_SB[_SBIndex].Length - 3, 3);
 						}
 					}
+					else if (tType.ListAdditionalInheritance.Count != 0)
+					{
+						_SB[_SBIndex].Append($" : ");
+						
+						foreach (TType item in tType.ListAdditionalInheritance)
+						{
+							_SB[_SBIndex].Append($"{item.Name}, ");
+						}
+						_SB[_SBIndex] = _SB[_SBIndex].Remove(_SB[_SBIndex].Length - 2, 2);
+
+					}
 					_SB[_SBIndex].AppendLine();
 					_SB[_SBIndex].Append("{");
 					_SB[_SBIndex].AppendLine();
@@ -541,21 +505,8 @@ public class GenCSharp : ILog
 
 						if (arrL != null)
 							_SB[_SBIndex].Append($"{tType.Inheritance}");
-
-						if (tType.ListAdditionalInheritance.Count != 0)
-						{
-							if (arrL != null)
-								_SB[_SBIndex].Append($", ");
-							foreach (TType item in tType.ListAdditionalInheritance)
-							{
-								_SB[_SBIndex].Append($"{item.Name}, ");
-							}
-							_SB[_SBIndex] = _SB[_SBIndex].Remove(_SB[_SBIndex].Length - 2, 2);
-						}
-						else if (arrL == null)
-						{
+						else 
 							_SB[_SBIndex] = _SB[_SBIndex].Remove(_SB[_SBIndex].Length - 3, 3);
-						}
 					}
 					_SB[_SBIndex].AppendLine();
 					_SB[_SBIndex].Append("{");
