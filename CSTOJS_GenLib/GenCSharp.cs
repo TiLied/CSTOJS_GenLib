@@ -77,6 +77,11 @@ public class GenCSharp : ILog
 			}
 		}
 
+		for (int i = length; i < _Main.TType.Count; i++)
+		{
+			ResolveNestedUnion(_Main.TType[i]);
+		}
+
 		_SB[0] = new();
 		_SB[0].AppendLine($"//{DateTime.Now}");
 		_SB[0].AppendLine();
@@ -233,7 +238,7 @@ public class GenCSharp : ILog
 		}
 	}
 
-	private string CreateStructUnion(List<WebIDLType> _list) 
+	private string CreateStructUnion(List<WebIDLType> _list)
 	{
 		TType localTT = new();
 		localTT.Name = "Union" + _UnionId++;
@@ -246,11 +251,11 @@ public class GenCSharp : ILog
 
 		for (int i = 0; i < first.IDLType.Count; i++)
 		{
-			if (first.IDLType[i].IDLTypeStr == null) 
+			if (first.IDLType[i].IDLTypeStr == null)
 			{
 				for (int _i = 0; _i < first.IDLType[i].IDLType.Count; _i++)
 				{
-					if (first.IDLType[i].IDLType[_i].Union == true) 
+					if (first.IDLType[i].IDLType[_i].Union == true)
 					{
 						List<WebIDLType> _cloneList = (List<WebIDLType>)first.IDLType[i].IDLType.CloneObject();
 
@@ -278,6 +283,89 @@ public class GenCSharp : ILog
 		_Main.TType.Add(localTT);
 
 		return localTT.Name;
+	}
+
+	private void ResolveNestedUnion(TType type)
+	{
+		for (int i = 0; i < type.Members.Count; i++)
+		{
+			for (int j = 0; j < type.Members[i].IDLType.Count; j++)
+			{
+				if (type.Members[i].IDLType[j].IDLTypeStr == null)
+				{
+					StringBuilder _sb = new();
+					ProcessWebIDLType(ref _sb, type.Members[i].IDLType[j]);
+					if (_sb.ToString().Contains("Union"))
+					{
+						switch (type.Members[i].IDLType[j].Type)
+						{
+							case "argument-type":
+								{
+									switch (type.Members[i].IDLType[j].Generic)
+									{
+										case "sequence":
+											{
+												string _sequence = _sb.ToString();
+												_sequence = _sequence.Replace("List<", "");
+												_sequence = _sequence.Replace(">", "");
+
+												TType? union = _Main.TType.Find((e) => e.Name == _sequence);
+												
+												Member mem = (Member)type.Members[i].CloneObject();
+												type.Members.RemoveAt(i);
+												
+												foreach (Member item in union.Members)
+												{
+													mem.IDLType[0].IDLType = item.IDLType;
+													
+													type.Members.Add((Member)mem.CloneObject());
+												}
+
+												break;
+											}
+										default:
+											_Log.WriteLine($"Error! ResolveNestedUnion:{type.Members[i].IDLType[j].Type}:{type.Members[i].IDLType[j].Generic}");
+											break;
+									}
+									break;
+								}
+							case "dictionary-type":
+								{
+									switch (type.Members[i].IDLType[j].Generic)
+									{
+										case "sequence":
+											{
+												string _sequence = _sb.ToString();
+												_sequence = _sequence.Replace("List<", "");
+												_sequence = _sequence.Replace(">", "");
+
+												TType? union = _Main.TType.Find((e) => e.Name == _sequence);
+											
+												Member mem = (Member)type.Members[i].CloneObject();
+												type.Members.RemoveAt(i);
+												foreach (Member item in union.Members)
+												{
+													mem.IDLType[0].IDLType = item.IDLType;
+
+													type.Members.Add((Member)mem.CloneObject());
+												}
+
+												break;
+											}
+										default:
+											_Log.WriteLine($"Error! ResolveNestedUnion:{type.Members[i].IDLType[j].Type}:{type.Members[i].IDLType[j].Generic}");
+											break;
+									}
+									break;
+								}
+							default:
+								_Log.WriteLine($"Error! ResolveNestedUnion:{type.Members[i].IDLType[j].Type}");
+								break;
+						}
+					}
+				}
+			}
+		}
 	}
 
 	private void ProcessTType(TType tType)
