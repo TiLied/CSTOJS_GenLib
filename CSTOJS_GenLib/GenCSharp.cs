@@ -381,7 +381,7 @@ public class GenCSharp : ILog
 				{
 					_SBIndex = 1;
 					AddXmlRef(tType.Name);
-					_SB[_SBIndex].AppendLine($"[To(ToAttribute.NoneWithTailingDotRemoved)]");
+					_SB[_SBIndex].AppendLine($"[To(ToAttribute.NoneWithTrailingDotRemoved)]");
 					_SB[_SBIndex].Append($"public enum {tType.Name}");
 					_SB[_SBIndex].AppendLine();
 					_SB[_SBIndex].Append('{');
