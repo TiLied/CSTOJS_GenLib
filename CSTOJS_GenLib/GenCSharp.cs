@@ -94,6 +94,8 @@ public class GenCSharp : ILog
 		_SB[0].AppendLine("#pragma warning disable CS8625");
 		_SB[0].AppendLine("//Ignore non-nullable property must contain a non-null value");
 		_SB[0].AppendLine("#pragma warning disable CS8618");
+		_SB[0].AppendLine("//Ignore 'Use the new keyword if hiding was intended.'");
+		_SB[0].AppendLine("#pragma warning disable CS0108");
 		_SB[0].AppendLine();
 		_SB[0].AppendLine("using static CSharpToJavaScript.APIs.JS.Ecma.GlobalObject;");
 		_SB[0].AppendLine("using CSharpToJavaScript.APIs.JS.Ecma;");
