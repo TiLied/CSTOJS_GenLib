@@ -11,8 +11,10 @@ namespace CSTOJS_GenLib;
 public class GenCSharp : ILog
 {
 	private readonly ILog _Log;
+	
 	private string _Output = string.Empty;
-
+	private string _PathToGeneratedDocs = string.Empty;
+	
 	private Welcome _Main = new();
 
 	private int _UnionId = 0;
@@ -23,7 +25,11 @@ public class GenCSharp : ILog
 	private List<TType> _ListOfTypeDefs = new();
 
 	private bool _OneForDOMParser = false;
-
+	
+	private HashSet<string> _UsedXMLFiles = new();
+	
+	private StringBuilder[] _SB = new StringBuilder[8];
+	private int _SBIndex = 0;
 	//
 	//0 = Typedef. Needs to be in every other StringBuilder!
 	//1 = enums: enum.
@@ -38,18 +44,24 @@ public class GenCSharp : ILog
 	{
 		"Skip", "enum", "interface-mixin", "namespace", "interface", "dictionary", "callback", "union"
 	};
-	private StringBuilder[] _SB = new StringBuilder[8];
-	private int _SBIndex = 0;
 
 	public GenCSharp()
 	{
 		_Log = this;
 	}
-
-	public async Task GenerateCSFromJson(string path, string output)
+	
+	/// <summary>
+	/// This method generates .cs files from WebIDL (.json).
+	/// </summary>
+	/// <param name="path">Path to the json.</param>
+	/// <param name="output">Path to where output cs files.</param>
+	/// <param name="pathToGeneratedDocs">Optional. Path to the generated docs see <see cref="GenDocs" />.</param>
+	/// <returns></returns>
+	public async Task GenerateCSFromJson(string path, string output, string pathToGeneratedDocs = "")
 	{
 		_Output = output;
-
+		_PathToGeneratedDocs = pathToGeneratedDocs;
+		
 		string jsonString = File.ReadAllText(path);
 		
 		JsonSerializerOptions serializeOptions = new();
@@ -140,7 +152,9 @@ public class GenCSharp : ILog
 		{
 			await File.WriteAllTextAsync(Path.Combine(output, $"{_JSFileNames[i]}.generated.cs"), _SB[i].ToString());
 		}
-
+		
+		RemoveUnusedXML();
+		
 		_Log.WriteLine("--- Done!");
 	}
 	
@@ -1701,14 +1715,40 @@ public class GenCSharp : ILog
 		{
 			currentTypeName = "request";
 		}
-
+		
+		
+		//Todo? Remove this?
 		//The output path needs to be in CSharpToJavaScript!
-		string directory = _Output.Replace("APIs", "Utils");
-		directory = directory.Replace("JS/Generated", "");
-
-		if (File.Exists($"{directory}/Docs2/{currentTypeName}/{currentTypeName}.xml"))
-			_SB[_SBIndex].AppendLine($"///<include file='CSharpToJavaScript/Utils/Docs2/{currentTypeName}/{currentTypeName}.xml' path='docs/{name}/*'/>");
-		if (File.Exists($"{directory}/Docs/{currentTypeName}/{currentTypeName}.generated.xml"))
+		//string directory = _Output.Replace("APIs", "Utils");
+		//directory = directory.Replace("JS/Generated", "");
+		
+		//if (File.Exists($"{directory}/Docs2/{currentTypeName}/{currentTypeName}.xml"))
+			//_SB[_SBIndex].AppendLine($"///<include file='CSharpToJavaScript/Utils/Docs2/{currentTypeName}/{currentTypeName}.xml' path='docs/{name}/*'/>");
+		
+		string xml = $"{_PathToGeneratedDocs}/{currentTypeName}/{currentTypeName}.generated.xml";
+		if (File.Exists(xml))
+		{
 			_SB[_SBIndex].AppendLine($"///<include file='CSharpToJavaScript/Utils/Docs/{currentTypeName}/{currentTypeName}.generated.xml' path='docs/{name}/*'/>");
+			_UsedXMLFiles.Add(xml);
+		}
+	}
+	private void RemoveUnusedXML()
+	{
+		if(_PathToGeneratedDocs == string.Empty)
+			return;
+
+		_Log.WriteLine($"_UsedXMLFiles count:{_UsedXMLFiles.Count}");
+		string[] files = Directory.GetFiles(_PathToGeneratedDocs, "*.generated.xml", SearchOption.AllDirectories);
+		_Log.WriteLine($"Total xml count:{files.Length}");
+		
+		for (int i = 0; i < files.Length; i++)
+		{
+			if(!_UsedXMLFiles.Contains(files[i]))
+			{
+				//Remove
+				_Log.WriteLine($"Remove: {files[i]}.");
+				File.Delete(files[i]);
+			}
+		}
 	}
 }
