@@ -13,7 +13,7 @@ public class GenCSharp : ILog
 	private readonly ILog _Log;
 	
 	private string _Output = string.Empty;
-	private string _PathToGeneratedDocs = string.Empty;
+	private string _PathToGenDocs = string.Empty;
 	
 	private Welcome _Main = new();
 
@@ -57,10 +57,10 @@ public class GenCSharp : ILog
 	/// <param name="output">Path to where output cs files.</param>
 	/// <param name="pathToGeneratedDocs">Optional. Path to the generated docs see <see cref="GenDocs" />.</param>
 	/// <returns></returns>
-	public async Task GenerateCSFromJson(string path, string output, string pathToGeneratedDocs = "")
+	public async Task GenerateCSFromJson(string path, string output, string pathToGenDocs = "")
 	{
 		_Output = output;
-		_PathToGeneratedDocs = pathToGeneratedDocs;
+		_PathToGenDocs = pathToGenDocs;
 		
 		string jsonString = File.ReadAllText(path);
 		
@@ -98,7 +98,7 @@ public class GenCSharp : ILog
 		_SB[0].AppendLine($"//{DateTime.Now}");
 		_SB[0].AppendLine();
 		_SB[0].AppendLine("#nullable enable");
-		_SB[0].AppendLine("//Disable missing XML comments.");
+		_SB[0].AppendLine("//Ignore missing XML comments.");
 		_SB[0].AppendLine("#pragma warning disable CS1591");
 		_SB[0].AppendLine("//Ignore files not found.");
 		_SB[0].AppendLine("#pragma warning disable CS1589");
@@ -108,6 +108,8 @@ public class GenCSharp : ILog
 		_SB[0].AppendLine("#pragma warning disable CS8618");
 		_SB[0].AppendLine("//Ignore 'Use the new keyword if hiding was intended.'");
 		_SB[0].AppendLine("#pragma warning disable CS0108");
+		_SB[0].AppendLine("//Ignore 'XML comment has cref attribute '...' that could not be resolved'");
+		_SB[0].AppendLine("#pragma warning disable CS1574");
 		_SB[0].AppendLine();
 		_SB[0].AppendLine("using static CSharpToJavaScript.APIs.JS.Ecma.GlobalObject;");
 		_SB[0].AppendLine("using CSharpToJavaScript.APIs.JS.Ecma;");
@@ -1725,7 +1727,7 @@ public class GenCSharp : ILog
 		//if (File.Exists($"{directory}/Docs2/{currentTypeName}/{currentTypeName}.xml"))
 			//_SB[_SBIndex].AppendLine($"///<include file='CSharpToJavaScript/Utils/Docs2/{currentTypeName}/{currentTypeName}.xml' path='docs/{name}/*'/>");
 		
-		string xml = $"{_PathToGeneratedDocs}/{currentTypeName}/{currentTypeName}.generated.xml";
+		string xml = $"{_PathToGenDocs}/{currentTypeName}/{currentTypeName}.generated.xml";
 		if (File.Exists(xml))
 		{
 			_SB[_SBIndex].AppendLine($"///<include file='CSharpToJavaScript/Utils/Docs/{currentTypeName}/{currentTypeName}.generated.xml' path='docs/{name}/*'/>");
@@ -1734,11 +1736,11 @@ public class GenCSharp : ILog
 	}
 	private void RemoveUnusedXML()
 	{
-		if(_PathToGeneratedDocs == string.Empty)
+		if(_PathToGenDocs == string.Empty)
 			return;
 
 		_Log.WriteLine($"_UsedXMLFiles count:{_UsedXMLFiles.Count}");
-		string[] files = Directory.GetFiles(_PathToGeneratedDocs, "*.generated.xml", SearchOption.AllDirectories);
+		string[] files = Directory.GetFiles(_PathToGenDocs, "*.generated.xml", SearchOption.AllDirectories);
 		_Log.WriteLine($"Total xml count:{files.Length}");
 		
 		for (int i = 0; i < files.Length; i++)
