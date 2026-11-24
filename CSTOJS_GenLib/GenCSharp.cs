@@ -8,10 +8,8 @@ using System.Threading.Tasks;
 
 namespace CSTOJS_GenLib;
 
-public class GenCSharp : ILog
+public class GenCSharp
 {
-	private readonly ILog _Log;
-	
 	private string _Output = string.Empty;
 	private string _PathToGenDocs = string.Empty;
 	
@@ -23,11 +21,13 @@ public class GenCSharp : ILog
 
 	private List<string> _ListNamesForAttr = new();
 	private List<TType> _ListOfTypeDefs = new();
-
+	private Dictionary<string, TType> _DictionaryOfUnions = new();
+	
 	private bool _OneForDOMParser = false;
 	
 	private HashSet<string> _UsedXMLFiles = new();
 	
+	//TODO? OrderedDictionary?
 	private StringBuilder[] _SB = new StringBuilder[8];
 	private int _SBIndex = 0;
 	//
@@ -44,11 +44,6 @@ public class GenCSharp : ILog
 	{
 		"Skip", "enum", "interface-mixin", "namespace", "interface", "dictionary", "callback", "union"
 	};
-
-	public GenCSharp()
-	{
-		_Log = this;
-	}
 	
 	/// <summary>
 	/// This method generates .cs files from WebIDL (.json).
@@ -157,7 +152,7 @@ public class GenCSharp : ILog
 		
 		RemoveUnusedXML();
 		
-		_Log.WriteLine("--- Done!");
+		Log.WriteLine("--- Done!");
 	}
 	
 	private void ResolveUnion(TType main)
@@ -299,7 +294,8 @@ public class GenCSharp : ILog
 		}
 
 		_Main.TType.Add(localTT);
-
+		_DictionaryOfUnions.Add(localTT.Name, localTT);
+		
 		return localTT.Name;
 	}
 
@@ -309,78 +305,79 @@ public class GenCSharp : ILog
 		{
 			for (int j = 0; j < type.Members[i].IDLType.Count; j++)
 			{
-				if (type.Members[i].IDLType[j].IDLTypeStr == null)
+				WebIDLType _webIDLType = new();
+
+				string? _idlTypeStr = type.Members[i].IDLType[j].IDLTypeStr;
+				
+				StringBuilder _sb = new();
+				
+				string _unionKey = string.Empty;
+
+				if (_idlTypeStr != null)
 				{
-					StringBuilder _sb = new();
-					ProcessWebIDLType(ref _sb, type.Members[i].IDLType[j]);
-					if (_sb.ToString().Contains("Union"))
+					TType? _typeDef = null;
+					for (int x = 0; x < _ListOfTypeDefs.Count; x++)
 					{
-						switch (type.Members[i].IDLType[j].Type)
+						if (_ListOfTypeDefs[x].Name == _idlTypeStr)
 						{
-							case "argument-type":
-								{
-									switch (type.Members[i].IDLType[j].Generic)
-									{
-										case "sequence":
-											{
-												string _sequence = _sb.ToString();
-												_sequence = _sequence.Replace("List<", "");
-												_sequence = _sequence.Replace(">", "");
-
-												TType? union = _Main.TType.Find((e) => e.Name == _sequence);
-												
-												Member mem = (Member)type.Members[i].CloneObject();
-												type.Members.RemoveAt(i);
-												
-												foreach (Member item in union.Members)
-												{
-													mem.IDLType[0].IDLType = item.IDLType;
-													
-													type.Members.Add((Member)mem.CloneObject());
-												}
-
-												break;
-											}
-										default:
-											_Log.WriteLine($"Error! ResolveNestedUnion:{type.Members[i].IDLType[j].Type}:{type.Members[i].IDLType[j].Generic}");
-											break;
-									}
-									break;
-								}
-							case "dictionary-type":
-								{
-									switch (type.Members[i].IDLType[j].Generic)
-									{
-										case "sequence":
-											{
-												string _sequence = _sb.ToString();
-												_sequence = _sequence.Replace("List<", "");
-												_sequence = _sequence.Replace(">", "");
-
-												TType? union = _Main.TType.Find((e) => e.Name == _sequence);
-											
-												Member mem = (Member)type.Members[i].CloneObject();
-												type.Members.RemoveAt(i);
-												foreach (Member item in union.Members)
-												{
-													mem.IDLType[0].IDLType = item.IDLType;
-
-													type.Members.Add((Member)mem.CloneObject());
-												}
-
-												break;
-											}
-										default:
-											_Log.WriteLine($"Error! ResolveNestedUnion:{type.Members[i].IDLType[j].Type}:{type.Members[i].IDLType[j].Generic}");
-											break;
-									}
-									break;
-								}
-							default:
-								_Log.WriteLine($"Error! ResolveNestedUnion:{type.Members[i].IDLType[j].Type}");
-								break;
+							_typeDef = _ListOfTypeDefs[x];
+							break;
 						}
 					}
+					if (_typeDef != null)
+					{
+						_webIDLType = _typeDef.IDLType[0];
+						ProcessWebIDLType(ref _sb, _webIDLType);
+					}
+
+				}
+				else
+				{
+					_webIDLType = type.Members[i].IDLType[j];
+					ProcessWebIDLType(ref _sb, type.Members[i].IDLType[j]);
+				}
+
+				_unionKey = _sb.ToString();
+
+				if (_unionKey.StartsWith("Union"))
+				{
+					type.Members.RemoveAt(i);
+
+					TType _union = _DictionaryOfUnions[_unionKey];
+					for (int x = 0; x < _union.Members.Count; x++)
+					{
+						type.Members.Add((Member)_union.Members[x].CloneObject());
+					}
+				}
+				else if (_unionKey.StartsWith("List<Union"))
+				{
+					Member _mem = (Member)type.Members[i].CloneObject();
+					type.Members.RemoveAt(i);
+
+					TType _union = _DictionaryOfUnions[_unionKey.Replace(">", "").Replace("<", "").Replace("List", "")];
+					for (int x = 0; x < _union.Members.Count; x++)
+					{
+						_mem.IDLType[0].IDLType = _union.Members[x].IDLType;
+
+						type.Members.Add((Member)_mem.CloneObject());
+					}
+				}
+				else if(_unionKey.Contains("Union"))
+				{
+					Log.WriteLine($"_unionKey: {_unionKey}");
+					Log.WriteLine($"_idlTypeStr: {_idlTypeStr}");
+					/*
+					TType? _typeDef = null;
+					for (int x = 0; x < _ListOfTypeDefs.Count; x++)
+					{
+						if (_ListOfTypeDefs[x].Name == _idlTypeStr)
+						{
+							_typeDef = _ListOfTypeDefs[x];
+							Log.WriteLine($"_unionKey: {_unionKey}");
+							Log.WriteLine($"_idlTypeStr: {_idlTypeStr}");
+							break;
+						}
+					}*/
 				}
 			}
 		}
@@ -760,7 +757,7 @@ public class GenCSharp : ILog
 					break;
 				}
 			default:
-				_Log.WriteLine($"{tType.Type}");
+				Log.WriteLine($"{tType.Type}");
 				break;
 		}
 	}
@@ -836,7 +833,7 @@ public class GenCSharp : ILog
 					break;
 				}
 			default:
-				_Log.WriteLine($"{value.Type}");
+				Log.WriteLine($"{value.Type}");
 				break;
 		}
 	}
@@ -1085,7 +1082,7 @@ public class GenCSharp : ILog
 			case "maplike":
 				return;
 			default:
-				_Log.WriteLine($"{member.Type}");
+				Log.WriteLine($"{member.Type}");
 				break;
 		}
 	}
@@ -1132,7 +1129,7 @@ public class GenCSharp : ILog
 								break;
 							}
 						default:
-							_Log.WriteLine($"{webIDLType.Type} {webIDLType.Generic}");
+							Log.WriteLine($"{webIDLType.Type} {webIDLType.Generic}");
 							break;
 					}
 
@@ -1157,7 +1154,7 @@ public class GenCSharp : ILog
 								break;
 							}
 						default:
-							_Log.WriteLine($"{webIDLType.Type} {webIDLType.Generic}");
+							Log.WriteLine($"{webIDLType.Type} {webIDLType.Generic}");
 							break;
 					}
 
@@ -1219,7 +1216,7 @@ public class GenCSharp : ILog
 								break;
 							}
 						default:
-							_Log.WriteLine($"{webIDLType.Type} {webIDLType.Generic}");
+							Log.WriteLine($"{webIDLType.Type} {webIDLType.Generic}");
 							break;
 					}
 
@@ -1281,7 +1278,7 @@ public class GenCSharp : ILog
 								break;
 							}
 						default:
-							_Log.WriteLine($"{webIDLType.Type} {webIDLType.Generic}");
+							Log.WriteLine($"{webIDLType.Type} {webIDLType.Generic}");
 							break;
 					}
 
@@ -1339,7 +1336,7 @@ public class GenCSharp : ILog
 								break;
 							}
 						default:
-							_Log.WriteLine($"{webIDLType.Type} {webIDLType.Generic}");
+							Log.WriteLine($"{webIDLType.Type} {webIDLType.Generic}");
 							break;
 					}
 
@@ -1395,7 +1392,7 @@ public class GenCSharp : ILog
 								break;
 							}
 						default:
-							_Log.WriteLine($"{webIDLType.Type} {webIDLType.Generic}");
+							Log.WriteLine($"{webIDLType.Type} {webIDLType.Generic}");
 							break;
 					}
 					break;
@@ -1429,7 +1426,7 @@ public class GenCSharp : ILog
 							break;
 						}
 					default:
-						_Log.WriteLine($"{webIDLType.Type} {webIDLType.Generic}");
+						Log.WriteLine($"{webIDLType.Type} {webIDLType.Generic}");
 						break;
 				}
 
@@ -1485,7 +1482,7 @@ public class GenCSharp : ILog
 					break;
 				}
 			default:
-				_Log.WriteLine($"{argument.Type}");
+				Log.WriteLine($"{argument.Type}");
 				break;
 		}
 	}
@@ -1739,16 +1736,16 @@ public class GenCSharp : ILog
 		if(_PathToGenDocs == string.Empty)
 			return;
 
-		_Log.WriteLine($"_UsedXMLFiles count:{_UsedXMLFiles.Count}");
+		Log.WriteLine($"_UsedXMLFiles count:{_UsedXMLFiles.Count}");
 		string[] files = Directory.GetFiles(_PathToGenDocs, "*.generated.xml", SearchOption.AllDirectories);
-		_Log.WriteLine($"Total xml count:{files.Length}");
+		Log.WriteLine($"Total xml count:{files.Length}");
 		
 		for (int i = 0; i < files.Length; i++)
 		{
 			if(!_UsedXMLFiles.Contains(files[i]))
 			{
 				//Remove
-				_Log.WriteLine($"Remove: {files[i]}.");
+				Log.WriteLine($"Remove: {files[i]}.");
 				File.Delete(files[i]);
 			}
 		}
